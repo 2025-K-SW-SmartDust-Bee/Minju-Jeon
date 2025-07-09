@@ -1,0 +1,105 @@
+#include "FS.h"
+#include "SPIFFS.h"
+
+// Define virtual sensor types
+enum SensorType {
+  SENSOR_NONE,
+  SENSOR_TEMPERATURE,
+  SENSOR_ILLUMINANCE,
+  SENSOR_HUMIDITY
+};
+
+// Initial state is NONE
+SensorType currentSensor = SENSOR_NONE;
+
+void setup() {
+  Serial.begin(115200);
+
+  // Initialize SPIFFS
+  if (!SPIFFS.begin(true)) {
+    Serial.println("❌ Failed to initialize SPIFFS");
+    while (1);
+  }
+
+  Serial.println("✅ System initialized");
+
+  // Example: activate temperature sensor
+  updateDetectionTarget(SENSOR_TEMPERATURE);
+}
+
+void loop() {
+  if (Serial.available()) {
+    char cmd = Serial.read(); // User input to switch sensor (will later be replaced with inter-node communication)
+
+    if (cmd == '\n' || cmd == '\r') {
+      // Ignore newline or carriage return
+      return;
+    }
+
+    switch (cmd) {
+      case 't': updateDetectionTarget(SENSOR_TEMPERATURE); break;
+      case 'l': updateDetectionTarget(SENSOR_ILLUMINANCE); break;
+      case 'h': updateDetectionTarget(SENSOR_HUMIDITY); break;
+      case 'n': updateDetectionTarget(SENSOR_NONE); break;
+      default: Serial.println("❓ Unknown command"); break;
+    }
+  }
+
+  String sensorData = readFromCurrentSensor();
+  saveToStorage(sensorData);
+  delay(5000);  // Collect data every 5 seconds
+}
+
+// Switch active sensor
+void updateDetectionTarget(SensorType target) {
+  deactivateAllSensors();  // Deactivate all sensors
+  currentSensor = target;
+
+  switch (target) {
+    case SENSOR_TEMPERATURE:
+      Serial.println("Temperature sensor activated");
+      break;
+    case SENSOR_ILLUMINANCE:
+      Serial.println("Illuminance sensor activated");
+      break;
+    case SENSOR_HUMIDITY:
+      Serial.println("Humidity sensor activated");
+      break;
+    default:
+      Serial.println("❌ No valid sensor selected");
+  }
+}
+
+// Deactivate all sensors (virtual implementation)
+void deactivateAllSensors() {
+  Serial.println("🔌 All sensors deactivated");
+}
+
+// Generate virtual sensor data (to be replaced by actual sensor readings later)
+String readFromCurrentSensor() {
+  int value = random(0, 100); // Generate mock data
+
+  switch (currentSensor) {
+    case SENSOR_TEMPERATURE:
+      return "Temp: " + String(value) + "C";
+    case SENSOR_ILLUMINANCE:
+      return "Light: " + String(value) + "lx";
+    case SENSOR_HUMIDITY:
+      return "Humidity: " + String(value) + "%";
+    default:
+      return "No active sensor";
+  }
+}
+
+// Save sensor data to SPIFFS for persistent storage (can be retrieved even after power loss)
+void saveToStorage(String data) {
+  File file = SPIFFS.open("/data.txt", FILE_APPEND);
+  if (!file) {
+    Serial.println("❌ Failed to open file");
+    return;
+  }
+
+  file.println(data);
+  file.close();
+  Serial.println("💾 Saved: " + data);
+}
