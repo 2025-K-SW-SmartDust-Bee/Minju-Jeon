@@ -1,0 +1,54 @@
+#include <esp_sleep.h>
+#include "HT_SSD1306Wire.h"
+
+#define uS_TO_S_FACTOR 1000000ULL
+#define TIME_TO_SLEEP 5
+
+#ifdef WIRELESS_STICK_V3
+static SSD1306Wire  display(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_64_32, RST_OLED);
+#else
+static SSD1306Wire  display(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_128_64, RST_OLED);
+#endif
+
+void VextON(void)
+{
+  pinMode(Vext, OUTPUT);
+  digitalWrite(Vext, LOW);
+}
+
+void setup() {
+  VextON();
+  Serial.begin(115200);
+  delay(1000);
+
+  display.init();
+  display.setContrast(255);
+  display.setFont(ArialMT_Plain_16);
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+}
+
+void loop() {
+  // 1. Turn on the display and show message
+  display.clear();
+  display.drawString(0, 0, "Going to sleep...");
+  display.display();
+
+  delay(1000);
+
+  // 2. Turn off OLED and configure light sleep
+  display.displayOff();
+  Serial.println("💤 Entering light sleep for 5 seconds...");
+
+  esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+  esp_light_sleep_start();  // Enter light sleep here
+
+  // 3. After waking up
+  display.displayOn();
+  display.clear();
+  display.drawString(0, 0, "Woke up!");
+  display.display();
+
+  Serial.println("🌞 Woke up from light sleep!");
+
+  delay(1000);  // Brief delay before next sleep cycle
+}
