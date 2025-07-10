@@ -3,6 +3,9 @@
 #include "LoRaWan_APP.h"
 #include "Arduino.h"
 
+// ========== Device ID (Set differently for each node) ==========
+const char* DEVICE_ID = "NODE_A";  // or "NODE_B"
+
 // ========== Sensor Definition ==========
 enum SensorType {
   SENSOR_NONE,
@@ -11,9 +14,9 @@ enum SensorType {
   SENSOR_HUMIDITY
 };
 
-SensorType currentSensor = SENSOR_NONE;
+SensorType currentSensor = SENSOR_TEMPERATURE;
 
-// ========== LoRa Config ==========
+// ========== LoRa Configuration ==========
 char txpacket[64];
 bool lora_idle = true;
 double txNumber = 0;
@@ -21,36 +24,45 @@ double txNumber = 0;
 static RadioEvents_t RadioEvents;
 void OnTxDone(void);
 void OnTxTimeout(void);
+void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr);
+
+// ========== Transmission Timer ==========
+unsigned long lastSendTime = 0;
+unsigned long nextSendInterval = 10000;
 
 // ========== Setup ==========
 void setup() {
   Serial.begin(115200);
   delay(1000);
-  Serial.println("📦 System initializing...");
+  Serial.printf("📦 System initializing... (%s)\n", DEVICE_ID);
 
-  // SPIFFS init
   if (!SPIFFS.begin(true)) {
     Serial.println("❌ Failed to initialize SPIFFS");
     while (1);
   }
 
-  // LoRa init
   Mcu.begin(HELTEC_BOARD, SLOW_CLK_TPYE);
   RadioEvents.TxDone = OnTxDone;
   RadioEvents.TxTimeout = OnTxTimeout;
+  RadioEvents.RxDone = OnRxDone;
   Radio.Init(&RadioEvents);
-  Radio.SetChannel(915000000); // 915 MHz
+
+  Radio.SetChannel(915000000);
   Radio.SetTxConfig(MODEM_LORA, 5, 0, 0, 7, 1, 8,
-                    false, true, 0, 0, false, 3000);
+                    false, false, 0, 0, false, 3000);
+  Radio.SetRxConfig(MODEM_LORA, 0, 7, 1, 0, 8, 0,
+                    false, 0, true, 0, 0, false, true);
 
   Serial.println("✅ System ready");
-
-  updateDetectionTarget(SENSOR_TEMPERATURE); // Default sensor
+  updateDetectionTarget(SENSOR_TEMPERATURE);
+  Radio.Rx(0);  // Always start in RX mode
 }
 
 // ========== Main Loop ==========
 void loop() {
-  // --- 1. 시리얼로 센서 전환 ---
+  Radio.IrqProcess();
+
+  // Switch sensor via serial input
   if (Serial.available()) {
     char cmd = Serial.read();
     if (cmd != '\n' && cmd != '\r') {
@@ -64,22 +76,19 @@ void loop() {
     }
   }
 
-  // --- 2. 센서 데이터 수집 & 저장 ---
-  String sensorData = readFromCurrentSensor();
-  saveToStorage(sensorData);
+  // Transmit at irregular intervals
+  if (millis() - lastSendTime >= nextSendInterval && lora_idle) {
+    delay(random(100, 500));  // Random delay to avoid collisions
 
-   // --- 3. 최신 저장된 데이터를 LoRa로 전송 ---
-  if (lora_idle) {
-    txNumber += 1;
-    String latest = readLastLineFromStorage();  // 새로 추가된 함수 사용
-    snprintf(txpacket, sizeof(txpacket), "[%0.0f] %s", txNumber, latest.c_str());
-    Serial.printf("📤 Sending from storage: %s\n", txpacket);
+    String data = readFromCurrentSensor();
+    snprintf(txpacket, sizeof(txpacket), "[%s|%0.0f] %s", DEVICE_ID, ++txNumber, data.c_str());
+    Serial.printf("📤 Sending: %s\n", txpacket);
+
     Radio.Send((uint8_t*)txpacket, strlen(txpacket));
     lora_idle = false;
+    lastSendTime = millis();
+    nextSendInterval = random(8000, 15000);  // Next interval: 8~15 seconds
   }
-
-  Radio.IrqProcess();
-  delay(5000);
 }
 
 // ========== Sensor Logic ==========
@@ -101,7 +110,6 @@ void deactivateAllSensors() {
 
 String readFromCurrentSensor() {
   int value = random(0, 100);
-
   switch (currentSensor) {
     case SENSOR_TEMPERATURE: return "Temp: " + String(value) + "C";
     case SENSOR_ILLUMINANCE: return "Light: " + String(value) + "lx";
@@ -110,42 +118,66 @@ String readFromCurrentSensor() {
   }
 }
 
-// ========== SPIFFS 저장 ==========
-void saveToStorage(String data) {
-  File file = SPIFFS.open("/data.txt", FILE_APPEND);
-  if (!file) {
-    Serial.println("❌ Failed to open file");
-    return;
-  }
-  file.println(data);
-  file.close();
-  Serial.println("💾 Saved: " + data);
-}
-
-String readLastLineFromStorage() {
-  File file = SPIFFS.open("/data.txt", FILE_READ);
-  if (!file) {
-    Serial.println("❌ Failed to open file for reading");
-    return "ERROR: No data";
-  }
-
-  String lastLine = "";
-  while (file.available()) {
-    lastLine = file.readStringUntil('\n');  // 계속 덮어쓰기 → 마지막 줄만 남음
-  }
-
-  file.close();
-  return lastLine;
-}
-
-
-// ========== LoRa 이벤트 ==========
+// ========== LoRa Event Handlers ==========
 void OnTxDone() {
   Serial.println("✅ LoRa TX done");
+  Radio.Rx(0);
   lora_idle = true;
 }
 
 void OnTxTimeout() {
   Serial.println("⏱️ LoRa TX timeout");
+  Radio.Rx(0);
+  lora_idle = true;
+}
+
+void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr) {
+  char rxBuf[64];
+  memcpy(rxBuf, payload, size);
+  rxBuf[size] = '\0';
+
+  // Handle ACK
+  if (strcmp(rxBuf, "ACK") == 0) {
+    Serial.printf("📥 Received ACK | RSSI: %d\n", rssi);
+    Radio.Rx(0);
+    lora_idle = true;
+    return;
+  }
+
+  // Ignore own packet
+  if (strstr(rxBuf, DEVICE_ID) != nullptr) {
+    Serial.println("🛑 Skipping self-packet");
+    Radio.Rx(0);
+    lora_idle = true;
+    return;
+  }
+
+  // Parse message
+  String message = String(rxBuf);
+  int startIdx = message.indexOf('[');
+  int midIdx = message.indexOf('|');
+  int endIdx = message.indexOf(']');
+
+  if (startIdx != -1 && midIdx != -1 && endIdx != -1) {
+    String senderId = message.substring(startIdx + 1, midIdx);
+    String msgNumber = message.substring(midIdx + 1, endIdx);
+    String content = message.substring(endIdx + 2);
+    Serial.printf("📥 From %s | Msg #%s | Content: %s | RSSI: %d\n",
+                  senderId.c_str(), msgNumber.c_str(), content.c_str(), rssi);
+  } else {
+    Serial.printf("📥 Unknown Format: %s | RSSI: %d\n", rxBuf, rssi);
+  }
+
+  // Sensor control
+  if (strstr(rxBuf, "Temp") != nullptr) updateDetectionTarget(SENSOR_TEMPERATURE);
+  else if (strstr(rxBuf, "Light") != nullptr) updateDetectionTarget(SENSOR_ILLUMINANCE);
+  else if (strstr(rxBuf, "Humidity") != nullptr) updateDetectionTarget(SENSOR_HUMIDITY);
+  else if (strstr(rxBuf, "None") != nullptr) updateDetectionTarget(SENSOR_NONE);
+
+  // Send ACK response
+  Serial.println("📨 Sending ACK...");
+  Radio.Send((uint8_t*)"ACK", 3);
+  delay(100);
+  Radio.Rx(0);
   lora_idle = true;
 }
