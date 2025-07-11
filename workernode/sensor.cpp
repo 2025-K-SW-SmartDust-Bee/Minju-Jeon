@@ -1,11 +1,15 @@
 #include "sensor.h"
 
+DHT dht(DHTPIN, DHTTYPE);
 SensorType currentSensor = SENSOR_TEMPERATURE;
+
+void initSensors() {
+  dht.begin();
+}
 
 void updateDetectionTarget(SensorType target) {
   deactivateAllSensors();
   currentSensor = target;
-
   switch (target) {
     case SENSOR_TEMPERATURE: Serial.println("🌡️ Temp sensor activated"); break;
     case SENSOR_ILLUMINANCE: Serial.println("💡 Light sensor activated"); break;
@@ -19,11 +23,18 @@ void deactivateAllSensors() {
 }
 
 String readFromCurrentSensor() {
-  int value = random(0, 100);
-  switch (currentSensor) {
-    case SENSOR_TEMPERATURE: return "Temp: " + String(value) + "C";
-    case SENSOR_ILLUMINANCE: return "Light: " + String(value) + "lx";
-    case SENSOR_HUMIDITY:    return "Humidity: " + String(value) + "%";
-    default: return "No active sensor";
+  if (currentSensor == SENSOR_TEMPERATURE) {
+    float t = dht.readTemperature();
+    if (isnan(t)) return "Temp: error";
+    return "Temp: " + String(t, 1) + "C";
+  } else if (currentSensor == SENSOR_HUMIDITY) {
+    float h = dht.readHumidity();
+    if (isnan(h)) return "Humidity: error";
+    return "Humidity: " + String(h, 1) + "%";
+  } else if (currentSensor == SENSOR_ILLUMINANCE) {
+    int value = analogRead(PHOTO_PIN); // 조도값 읽기
+    return "Light: " + String(value) + "/4095";
+  } else {
+    return "No active sensor";
   }
 }
