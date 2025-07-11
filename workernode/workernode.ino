@@ -12,6 +12,8 @@ void setup() {
   Serial.println("▶ setup() 시작");
 
   initDeviceId();
+  initSensors();
+  
   Serial.printf("📦 System initializing... (%s)\n", DEVICE_ID);
 
   if (!SPIFFS.begin(true)) {
