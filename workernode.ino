@@ -1,9 +1,10 @@
 #include "FS.h"
 #include "SPIFFS.h"
+#include "LoRaWan_APP.h"
 #include "sensor.h"
 #include "device_id.h"
-#include "LoRaWan_APP.h"
-#include "lora.h"
+#include "setuplora.h"
+#include "lora_send.h"
 
 void setup() {
   Serial.begin(115200);

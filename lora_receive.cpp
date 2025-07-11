@@ -1,7 +1,8 @@
-#include "lora.h"
+#include "lora_receive.h"
+#include "sensor.h"
 #include "LoRaWan_APP.h"
 #include "device_id.h"
-#include <string.h>
+#include "lora_send.h"
 
 void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr) {
   char rxBuf[64];
