@@ -10,8 +10,12 @@
 #include <PubSubClient.h>
 
 // Wifi and MQTT Server Configuration
-const char* ssid = "IITP";
-const char* password = "IITPWireless!25";
+// const char* ssid = "IITP";
+// const char* password = "IITPWireless!25";
+
+const char* ssid = "Junko1stCute";
+const char* password = "zhangbo123";
+
 const char* mqtt_server = "43.135.166.229";  // 你的 MQTT 服务器 IP
 
 WiFiClient espClient;
@@ -70,5 +74,5 @@ void loop() {
     }
   }
 
-  tryTransmit();
+  // tryTransmit();
 }
