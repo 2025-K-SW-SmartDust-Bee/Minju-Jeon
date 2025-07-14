@@ -22,6 +22,6 @@ void initSensors();
 void updateDetectionTarget(SensorType target);
 void deactivateAllSensors();
 String readFromCurrentSensor();
-String readAllSensors();
+String readAllSensorsAsJson();
 
 #endif

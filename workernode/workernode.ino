@@ -20,14 +20,8 @@ void setup() {
     Serial.println("Failed to initialize SPIFFS");
     while (1);
   }
-  Serial.println("SPIFFS OK");
-
   Mcu.begin(HELTEC_BOARD, SLOW_CLK_TPYE);
-  Serial.println("Mcu.begin() OK");
-
   setupLoRa();
-  Serial.println("setupLoRa() OK");
-  Serial.println("센서 OK");
   Serial.println("System ready");
 }
 
@@ -39,7 +33,7 @@ void loop() {
     char cmd = Serial.read();
     if (cmd == 'a') {  // 모든 센서 값 확인
       Serial.println("Reading all sensors...");
-      Serial.println(readAllSensors());
+      Serial.println(readAllSensorsAsJson());
     }
   }
 
