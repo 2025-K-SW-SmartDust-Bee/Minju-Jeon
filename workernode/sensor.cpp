@@ -11,30 +11,31 @@ void updateDetectionTarget(SensorType target) {
   deactivateAllSensors();
   currentSensor = target;
   switch (target) {
-    case SENSOR_TEMPERATURE: Serial.println("🌡️ Temp sensor activated"); break;
-    case SENSOR_ILLUMINANCE: Serial.println("💡 Light sensor activated"); break;
-    case SENSOR_HUMIDITY:    Serial.println("💧 Humidity sensor activated"); break;
-    default:                 Serial.println("❌ No valid sensor selected"); break;
+    case SENSOR_TEMPERATURE: Serial.println("Temp sensor activated"); break;
+    case SENSOR_ILLUMINANCE: Serial.println("Light sensor activated"); break;
+    case SENSOR_HUMIDITY:    Serial.println("Humidity sensor activated"); break;
+    default:                 Serial.println("No valid sensor selected"); break;
   }
 }
 
 void deactivateAllSensors() {
-  Serial.println("🔌 All sensors deactivated");
+  Serial.println("All sensors deactivated");
 }
 
-String readFromCurrentSensor() {
-  if (currentSensor == SENSOR_TEMPERATURE) {
-    float t = dht.readTemperature();
-    if (isnan(t)) return "Temp: error";
-    return "Temp: " + String(t, 1) + "C";
-  } else if (currentSensor == SENSOR_HUMIDITY) {
-    float h = dht.readHumidity();
-    if (isnan(h)) return "Humidity: error";
-    return "Humidity: " + String(h, 1) + "%";
-  } else if (currentSensor == SENSOR_ILLUMINANCE) {
-    int value = analogRead(PHOTO_PIN); // 조도값 읽기
-    return "Light: " + String(value) + "/4095";
-  } else {
-    return "No active sensor";
-  }
+String readAllSensors() {
+  String result = "";
+
+  float t = dht.readTemperature();
+  if (isnan(t)) result += "Temp: error\n";
+  else result += "Temp: " + String(t, 1) + "C\n";
+
+  float h = dht.readHumidity();
+  if (isnan(h)) result += "Humidity: error\n";
+  else result += "Humidity: " + String(h, 1) + "%\n";
+
+  int light = analogRead(PHOTO_PIN);
+  result += "Light: " + String(light) + "/4095\n";
+
+  return result;
 }
+
