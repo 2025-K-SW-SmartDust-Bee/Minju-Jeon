@@ -11,12 +11,12 @@ void setupLoRa() {
   RadioEvents.RxDone = OnRxDone;
   Radio.Init(&RadioEvents);
 
-  Radio.SetChannel(915000000);
+  Radio.SetChannel(902300000);
   Radio.SetTxConfig(MODEM_LORA, 5, 0, 0, 7, 1, 8,
                     false, false, 0, 0, false, 3000);
   Radio.SetRxConfig(MODEM_LORA, 0, 7, 1, 0, 8, 0,
                     false, 0, true, 0, 0, false, true);
-
+  Radio.SetSyncWord(0xFC);
   Radio.Rx(0);
 }
 
