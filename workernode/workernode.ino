@@ -14,24 +14,21 @@ void setup() {
   initDeviceId();
   initSensors();
   
-  Serial.printf("📦 System initializing... (%s)\n", DEVICE_ID);
+  Serial.printf("System initializing... (%s)\n", DEVICE_ID);
 
   if (!SPIFFS.begin(true)) {
-    Serial.println("❌ Failed to initialize SPIFFS");
+    Serial.println("Failed to initialize SPIFFS");
     while (1);
   }
-  Serial.println("✅ SPIFFS OK");
+  Serial.println("SPIFFS OK");
 
   Mcu.begin(HELTEC_BOARD, SLOW_CLK_TPYE);
-  Serial.println("✅ Mcu.begin() OK");
+  Serial.println("Mcu.begin() OK");
 
   setupLoRa();
-  Serial.println("✅ setupLoRa() OK");
-
-  updateDetectionTarget(SENSOR_TEMPERATURE);
-  Serial.println("✅ 센서 OK");
-
-  Serial.println("✅ System ready");
+  Serial.println("setupLoRa() OK");
+  Serial.println("센서 OK");
+  Serial.println("System ready");
 }
 
 
@@ -40,11 +37,9 @@ void loop() {
 
   if (Serial.available()) {
     char cmd = Serial.read();
-    switch (cmd) {
-      case 't': updateDetectionTarget(SENSOR_TEMPERATURE); break;
-      case 'l': updateDetectionTarget(SENSOR_ILLUMINANCE); break;
-      case 'h': updateDetectionTarget(SENSOR_HUMIDITY); break;
-      case 'n': updateDetectionTarget(SENSOR_NONE); break;
+    if (cmd == 'a') {  // 모든 센서 값 확인
+      Serial.println("Reading all sensors...");
+      Serial.println(readAllSensors());
     }
   }
 
