@@ -1,4 +1,6 @@
 #include "sensor.h"
+#include <ArduinoJson.h>
+#include "device_id.h"
 
 DHT dht(DHTPIN, DHTTYPE);
 SensorType currentSensor = SENSOR_TEMPERATURE;
@@ -22,20 +24,24 @@ void deactivateAllSensors() {
   Serial.println("All sensors deactivated");
 }
 
-String readAllSensors() {
-  String result = "";
-
-  float t = dht.readTemperature();
-  if (isnan(t)) result += "Temp: error\n";
-  else result += "Temp: " + String(t, 1) + "C\n";
-
-  float h = dht.readHumidity();
-  if (isnan(h)) result += "Humidity: error\n";
-  else result += "Humidity: " + String(h, 1) + "%\n";
-
+String readAllSensorsAsJson() {
+  float temperature = dht.readTemperature();
+  float humidity = dht.readHumidity();
   int light = analogRead(PHOTO_PIN);
-  result += "Light: " + String(light) + "/4095\n";
 
-  return result;
+  StaticJsonDocument<256> doc;
+
+  doc["type"] = "periodically"; // should be changed by situation
+  doc["source"] = String("sensor/") + DEVICE_ID; 
+
+  JsonObject payload = doc.createNestedObject("payload");
+
+  if (!isnan(temperature)) payload["temperature"] = temperature;
+  if (!isnan(humidity))    payload["humidity"] = humidity;
+  payload["light"] = light;
+
+  String output;
+  serializeJson(doc, output);
+  return output;
 }
 
