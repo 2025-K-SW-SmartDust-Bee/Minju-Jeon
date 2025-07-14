@@ -43,5 +43,5 @@ void loop() {
     }
   }
 
-  tryTransmit();
+  tryTransmitAllSensors();
 }

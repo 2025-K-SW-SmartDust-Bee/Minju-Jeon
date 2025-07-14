@@ -10,4 +10,5 @@ extern unsigned long nextSendInterval;
 
 void OnTxDone();
 void OnTxTimeout();
-void tryTransmit();
+void tryTransmitAllSensors();
+void tryTransmitCurrentSensor();
