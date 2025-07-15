@@ -30,8 +30,13 @@ String readAllSensorsAsJson() {
   int light = analogRead(PHOTO_PIN);
 
   StaticJsonDocument<256> doc;
+  doc["type"] = "periodically";
 
-  doc["type"] = "periodically"; // should be changed by situation
+  if (temperature > 36 || humidity > 70) {
+    doc["type"] = "emergency";
+  }
+
+   // should be changed by situation
   doc["source"] = String("sensor/") + DEVICE_ID; 
 
   JsonObject payload = doc.createNestedObject("payload");
